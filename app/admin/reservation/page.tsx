@@ -10,6 +10,7 @@ interface Reservation {
     timeslot_id: number;
     start_time: string;
     end_time: string;
+    paid: boolean; // 입금 여부 추가
 }
 
 interface TimeSlotGroup {
@@ -21,17 +22,16 @@ export default function AdminReservations() {
     const [groups, setGroups] = useState<TimeSlotGroup[]>([]);
     const [loading, setLoading] = useState(false);
     const [canceling, setCanceling] = useState<number | null>(null); // 취소 중인 예약 id
+    const [markingPaid, setMarkingPaid] = useState<number | null>(null); // 입금 확인 중인 id
 
     const fetchReservations = async () => {
         setLoading(true);
         try {
             const res = await fetch('/api/reservation'); // 서버에서 예약 리스트 반환
             const data: Reservation[] = await res.json();
-
+            console.log(data, '?data');
             // 타임별 그룹화
-            const grouped: TimeSlotGroup[] = [];
             const map = new Map<number, TimeSlotGroup>();
-
             data.forEach((r) => {
                 if (!map.has(r.timeslot_id)) {
                     map.set(r.timeslot_id, {
@@ -59,7 +59,7 @@ export default function AdminReservations() {
 
         setCanceling(reservationId);
         try {
-            const res = await fetch(`/api/admin/reservations/${reservationId}`, {
+            const res = await fetch(`/api/reservation/${reservationId}`, {
                 method: 'DELETE',
             });
 
@@ -75,6 +75,25 @@ export default function AdminReservations() {
             alert('취소 중 오류 발생');
         } finally {
             setCanceling(null);
+        }
+    };
+
+    const handleMarkPaid = async (reservationId: number) => {
+        setMarkingPaid(reservationId);
+        try {
+            const res = await fetch(`/api/reservation/${reservationId}`, { method: 'PATCH' });
+            if (res.ok) {
+                alert('입금 확인 처리 완료');
+                fetchReservations();
+            } else {
+                const err = await res.json();
+                alert(`실패: ${err.error}`);
+            }
+        } catch (err) {
+            console.error(err);
+            alert('오류 발생');
+        } finally {
+            setMarkingPaid(null);
         }
     };
 
@@ -109,21 +128,38 @@ export default function AdminReservations() {
                                 {group.reservations.map((r) => (
                                     <div
                                         key={r.id}
-                                        className="flex justify-between items-center p-3 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
+                                        className={`flex justify-between items-center p-3 rounded-lg transition
+                                        ${
+                                            r.paid ? 'bg-green-100 hover:bg-green-200' : 'bg-gray-100 hover:bg-gray-200'
+                                        }`}
                                     >
                                         <div>
                                             <p className="font-medium">{r.user_name}</p>
                                             <p className="text-sm text-gray-600">
                                                 {r.team_name} / 연락처: {r.phone} / 동행자: {r.companions}
                                             </p>
+                                            <p className="text-sm font-semibold mt-1">
+                                                {r.paid ? '✅ 입금 확인됨' : '🏦 입금 대기'}
+                                            </p>
                                         </div>
-                                        <button
-                                            onClick={() => handleCancel(r.id)}
-                                            disabled={canceling === r.id}
-                                            className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition"
-                                        >
-                                            {canceling === r.id ? '취소 중...' : '취소'}
-                                        </button>
+                                        <div className="flex flex-col gap-2">
+                                            {!r.paid && (
+                                                <button
+                                                    onClick={() => handleMarkPaid(r.id)}
+                                                    disabled={markingPaid === r.id}
+                                                    className="px-3 py-1 rounded bg-green-500 text-white hover:bg-green-600"
+                                                >
+                                                    {markingPaid === r.id ? '확인 중...' : '입금 확인'}
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={() => handleCancel(r.id)}
+                                                disabled={canceling === r.id}
+                                                className="px-3 py-1 rounded bg-red-500 text-white hover:bg-red-600"
+                                            >
+                                                {canceling === r.id ? '취소 중...' : '취소'}
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>

@@ -20,7 +20,6 @@ export async function POST(req: Request) {
 
         // 타임슬롯 조회 + 잠금
         const slotRes = await client.query(`SELECT teams FROM timeslots WHERE id = $1 FOR UPDATE`, [timeslotId]);
-
         if (slotRes.rowCount === 0) throw new Error('타임이 존재하지 않습니다.');
 
         const slot = slotRes.rows[0];
@@ -30,11 +29,11 @@ export async function POST(req: Request) {
         if (!teams[teamName]) throw new Error(`${teamName} 팀이 존재하지 않습니다.`);
         if (teams[teamName] <= 0) throw new Error(`${teamName} 예약이 꽉 찼습니다.`);
 
-        // reservations에 삽입
+        // reservations에 삽입 (paid 기본값 false)
         await client.query(
-            `INSERT INTO reservations (timeslot_id, user_name, team_name, phone, companions)
-             VALUES ($1, $2, $3, $4, $5)`,
-            [timeslotId, userName, teamName, phone, companions]
+            `INSERT INTO reservations (timeslot_id, user_name, team_name, phone, companions, paid)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [timeslotId, userName, teamName, phone, companions, false]
         );
 
         // teams JSON 업데이트 (잔여 수 -1)
@@ -57,12 +56,13 @@ export async function POST(req: Request) {
         client.release();
     }
 }
+
 export async function GET() {
     const client = await pool.connect();
     try {
         const res = await client.query(
             `SELECT r.id, r.user_name, r.phone, r.companions, r.team_name, r.timeslot_id, 
-                    t.start_time, t.end_time
+                    t.start_time, t.end_time, r.paid
              FROM reservations r
              JOIN timeslots t ON r.timeslot_id = t.id
              ORDER BY t.start_time ASC, r.created_at ASC`
