@@ -165,8 +165,7 @@ export default function SlotList() {
                                                 {label}
                                             </label>
                                             <input
-                                                type={label === '동행자 수' ? 'number' : 'text'}
-                                                min={1}
+                                                type="text" // 숫자 input 대신 text
                                                 value={
                                                     label === '이름'
                                                         ? form.name
@@ -183,7 +182,7 @@ export default function SlotList() {
                                                             ? 'phone'
                                                             : 'companions']:
                                                             label === '동행자 수'
-                                                                ? Number(e.target.value)
+                                                                ? e.target.value.replace(/\D/g, '') // 숫자만 허용, 비어있으면 빈 문자열
                                                                 : e.target.value,
                                                     }))
                                                 }
@@ -192,7 +191,6 @@ export default function SlotList() {
                                         </div>
                                     ))}
                                 </div>
-
                                 <div className="flex justify-end gap-4 mt-6">
                                     <button
                                         onClick={() => setModalOpen(false)}
